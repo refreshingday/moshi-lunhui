@@ -2,6 +2,11 @@
 
 更新：2026-11-18
 
+## 在线 / 仓库
+
+- 在线玩：https://refreshingday.github.io/moshi-lunhui/
+- 仓库：https://github.com/refreshingday/moshi-lunhui （`main` 分支，GitHub Pages 直接从根目录发布，推送后约 1 分钟生效）
+
 ## 怎么跑
 
 ```bash
