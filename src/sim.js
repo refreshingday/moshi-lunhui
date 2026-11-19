@@ -121,7 +121,9 @@ export class Sim {
       const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
       let sp = (combat ? 2.1 : 2.9) * G.moveMult;
       if (P.dodge > 0) { P.dodge -= dt * 3.2; sp = 5.2; mx = P.dx; mz = P.dz; }
-      else if (combat && input.dodge && P.dodgeCd <= 0 && ml > 0.1) { P.dodge = 1; P.dodgeCd = 0.9; P.dx = mx; P.dz = mz; P.inv = 0.35; this.hooks.sfx('whoosh'); }
+      else if (combat && input.dodge && P.dodgeCd <= 0) { // standing still: roll the way you face
+        if (ml <= 0.1) { mx = Math.sin(P.ry); mz = Math.cos(P.ry); }
+        P.dodge = 1; P.dodgeCd = 0.9; P.dx = mx; P.dz = mz; P.inv = 0.35; this.hooks.sfx('whoosh'); }
       P.dodgeCd -= dt; P.inv -= dt;
       P.vx = mx * sp; P.vz = mz * sp;
       P.x += P.vx * dt; P.z += P.vz * dt;

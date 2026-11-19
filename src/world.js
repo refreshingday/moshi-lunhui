@@ -60,7 +60,10 @@ export function addCutout(mat) {
         vec3 seg = uCutP - uCutC; float L2 = dot(seg, seg);
         float t = dot(vCutW - uCutC, seg) / max(L2, 1e-4);
         if (t > 0.0 && t < 0.975) {
-          float d = length(vCutW - (uCutC + seg * t));
+          vec3 q = uCutC + seg * t;
+          float d = length(vCutW - q);
+          // a surface well below the sight line (a low roof you stand beside) hides nothing: keep it
+          if (vCutW.y < q.y - 0.45) d = 1e3;
           float r = uCutR * (0.55 + 0.45 * smoothstep(0.75, 0.97, t));
           if (d < r * 0.78) discard;
           if (d < r && mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0) < 1.0) discard;
@@ -135,7 +138,7 @@ export function buildWorld(scene) {
   const b = new Builder();
   const gl = new Builder();
   const colliders = [];
-  const addCol = (x0, x1, z0, z1, tag) => colliders.push({ x0, x1, z0, z1, tag });
+  const addCol = (x0, x1, z0, z1, tag, h = 0) => colliders.push({ x0, x1, z0, z1, tag, h }); // h: occluder height for the see-through cutout
   const mapBlds = []; // minimap rects
   const mapRect = (x0, x1, z0, z1, k) => mapBlds.push({ x0, x1, z0, z1, k });
   const signs = [];
@@ -233,14 +236,14 @@ export function buildWorld(scene) {
     for (let i = 0; i < Math.floor(w * d / 3); i++) b.box(0.18, 0.12, 0.14, 0xe0e0dc, x0 + rr(0.2, w - 0.2), h + 0.03, z0 + rr(0.2, d - 0.2));
     if (!opts.noWin) { windowsOn(x0, x1, z0, z1, h, fl, opts.lit ?? 0.35, 'z'); windowsOn(x0, x1, z0, z1, h, fl, opts.lit ?? 0.35, 'x'); }
     if (opts.balcony) for (let f = 1; f * fl < h - 0.4; f++) for (let x = x0 + 0.5; x < x1 - 0.3; x += 1.2) b.box(0.6, 0.12, 0.2, 0xd9ccb7, x, f * fl - 0.04, z1 + 0.1, 0, { ao: false });
-    addCol(x0, x1, z0, z1, 'bld'); mapRect(x0, x1, z0, z1, opts.k || 'bld');
+    addCol(x0, x1, z0, z1, 'bld', h + 0.14); mapRect(x0, x1, z0, z1, opts.k || 'bld');
   };
   const shopFront = (x0, x1, z0, z1, h, wall, band, signTxt, sbg, sfg, k) => {
     const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     b.box(w, h, d, wall, cx, 0, cz);
     b.box(w + 0.04, 0.2, d + 0.04, band, cx, h - 0.2, cz, 0, { ao: false });
     b.box(w + 0.06, 0.05, d + 0.06, 0xdcd5c8, cx, h, cz, 0, { ao: false });
-    b.box(w - 0.2, 0.03, d - 0.2, 0x8c8780, cx, h + 0.02, cz, 0, { ao: false });
+    b.box(w - 0.2, 0.03, d - 0.2, 0x8c8780, cx, h + 0.035, cz, 0, { ao: false }); // top must clear the cap (h+0.05) or it z-fights
     b.box(w - 0.3, 0.7, 0.04, 0x3c4a55, cx, 0.05, z1 + 0.01, 0, { ao: false });
     gl.box(w - 0.4, 0.62, 0.02, 0xdff2ff, cx, 0.08, z1 + 0.035, 0, { ao: false, jitter: 0 });
     for (let i = 0; i <= 5; i++) b.box(0.035, 0.72, 0.05, 0x9aa1a6, x0 + 0.2 + i * (w - 0.4) / 5, 0.05, z1 + 0.04, 0, { ao: false });
@@ -248,7 +251,7 @@ export function buildWorld(scene) {
     windowsOn(x0, x1, z0 + 0.2, z1 - 0.2, h - 0.25, 0.62, 0.5, 'x');
     b.box(Math.min(w * 0.6, 2.0) + 0.1, 0.46, 0.05, 0x2a2420, cx, h + 0.06, z1 - 0.21);
     sign(signTxt, sbg, sfg, Math.min(w * 0.6, 2.0), 0.4, cx, h + 0.29, z1 - 0.18);
-    addCol(x0, x1, z0, z1, k); mapRect(x0, x1, z0, z1, k);
+    addCol(x0, x1, z0, z1, k, h + 0.06); mapRect(x0, x1, z0, z1, k);
   };
 
   // ---------- safehouse compound (幸福里 7 栋) ----------
@@ -307,7 +310,7 @@ export function buildWorld(scene) {
   b.box(0.6, 0.04, 0.32, 0x8f8778, L.door.x, 0.5, A.z1 + 0.16);
   b.box(0.5, 0.5, 0.03, 0x3a3532, L.door.x, 0, A.z1 + 0.01, 0, { ao: false });
   b.box(0.7, 0.05, 0.42, 0xa59a88, L.door.x, 0, A.z1 + 0.2);
-  addCol(A.x0, A.x1, A.z0, A.z1, 'apt'); mapRect(A.x0, A.x1, A.z0, A.z1, 'home');
+  addCol(A.x0, A.x1, A.z0, A.z1, 'apt', AH + 0.6); mapRect(A.x0, A.x1, A.z0, A.z1, 'home');
   b.box(0.9, 0.03, 0.55, 0x5a7f8a, -0.95, 0.42, -4.6); for (const [dx, dz] of [[-0.42, -0.25], [0.42, -0.25], [-0.42, 0.25], [0.42, 0.25]]) b.box(0.03, 0.42, 0.03, 0x666666, -0.95 + dx, 0, -4.6 + dz);
   for (let i = 0; i < 3; i++) b.cyl(0.07, 0.07, 0.015, 0x222222, -1.2 + i * 0.25, 0.08, -4.6, 10, { ao: false }, Math.PI / 2);
   addCol(-1.45, -0.45, -4.9, -4.3, 'shed');
@@ -334,13 +337,13 @@ export function buildWorld(scene) {
   b.box(mw, MH, md, 0xf1ede4, mcx, 0, mcz);
   b.box(mw + 0.04, 0.22, md + 0.04, 0xc23b2b, mcx, MH - 0.22, mcz, 0, { ao: false });
   b.box(mw + 0.06, 0.05, md + 0.06, 0xdcd5c8, mcx, MH, mcz, 0, { ao: false });
-  b.box(mw - 0.2, 0.03, md - 0.2, 0x8c8780, mcx, MH + 0.02, mcz, 0, { ao: false });
+  b.box(mw - 0.2, 0.03, md - 0.2, 0x8c8780, mcx, MH + 0.035, mcz, 0, { ao: false });
   for (let i = 0; i < 3; i++) b.box(0.4, 0.18, 0.3, 0xcfcfcf, M.x0 + 0.6 + i * 1.0, MH + 0.04, M.z0 + 0.8);
   b.box(mw - 0.3, 0.75, 0.04, 0x3c4a55, mcx, 0.05, M.z1 + 0.01, 0, { ao: false });
   gl.box(mw - 0.4, 0.68, 0.02, 0xdff2ff, mcx, 0.08, M.z1 + 0.035, 0, { ao: false, jitter: 0 });
   for (let i = 0; i <= 6; i++) b.box(0.035, 0.76, 0.05, 0x9aa1a6, M.x0 + 0.2 + i * (mw - 0.4) / 6, 0.05, M.z1 + 0.04, 0, { ao: false });
   b.box(mw + 0.3, 0.04, 0.5, 0xc23b2b, mcx, 0.85, M.z1 + 0.25, 0, { ao: false });
-  addCol(M.x0, M.x1, M.z0, M.z1, 'mart'); mapRect(M.x0, M.x1, M.z0, M.z1, 'mart');
+  addCol(M.x0, M.x1, M.z0, M.z1, 'mart', MH + 0.6); mapRect(M.x0, M.x1, M.z0, M.z1, 'mart');
   sign('华联超市', '#c23b2b', '#fff6e8', 1.7, 0.42, mcx, MH + 0.32, M.z1 - 0.18);
   b.box(1.8, 0.48, 0.05, 0x8a2a1f, mcx, MH + 0.08, M.z1 - 0.21);
   b.box(mw + 0.2, 0.02, 3.3, 0x5a5a5e, mcx, 0, M.z1 + 1.65, 0, { ao: false });
@@ -357,7 +360,7 @@ export function buildWorld(scene) {
   gl.box(0.36, 0.5, 0.02, 0x9fd0ff, bcx - 1.0, 0.3, BK.z1 + 0.012, 0, { ao: false, jitter: 0 }); // ATM screens
   gl.box(0.36, 0.5, 0.02, 0x9fd0ff, bcx + 1.0, 0.3, BK.z1 + 0.012, 0, { ao: false, jitter: 0 });
   b.box(0.9, 1.0, 0.03, 0x3c3530, bcx, 0.12, BK.z1 + 0.01, 0, { ao: false });
-  addCol(BK.x0, BK.x1, BK.z0, BK.z1 + 0.35, 'bank'); mapRect(BK.x0, BK.x1, BK.z0, BK.z1, 'bank');
+  addCol(BK.x0, BK.x1, BK.z0, BK.z1 + 0.35, 'bank', 2.2); mapRect(BK.x0, BK.x1, BK.z0, BK.z1, 'bank');
   sign('临江银行', '#1f3f6e', '#f3e7c8', 1.8, 0.4, bcx, 1.48, BK.z1 + 0.37);
   tower(3, 7, -11, -7.5, 4.6, 0xb9c2b4, { lit: 0.55, k: 'office' });
   tower(8.5, 12.5, -11, -7.6, 3.6, 0xa8b5b0, { lit: 0.5, k: 'office' });
@@ -387,7 +390,7 @@ export function buildWorld(scene) {
   addCol(CY.x0, CY.x1, CY.z0 - 0.05, CY.z0 + 0.05, 'fence');
   for (const [x, z] of [[3.2, 10.6], [4.2, 11.6], [6.2, 10.4]]) { for (let i = 0; i < 4; i++) b.box(0.9, 0.06, 0.32, i % 2 ? 0xc49a62 : 0xb08050, x, i * 0.06, z, i * 0.1); addCol(x - 0.45, x + 0.45, z - 0.2, z + 0.2, 'planks'); }
   for (let fx = 0; fx < 3; fx++) for (let fy = 0; fy < 3; fy++) { const x = 5.0 + fx * 0.6; b.box(0.03, 0.6, 0.03, 0xd08a3a, x, fy * 0.6, 12.0); b.box(0.6, 0.03, 0.03, 0xd08a3a, x + 0.3, fy * 0.6 + 0.58, 12.0); }
-  b.box(1.8, 1.9, 0.6, 0xc9c1b2, 5.6, 0, 12.4 - 0.3, 0, {}); addCol(4.7, 6.5, 11.8, 12.4, 'bld');
+  b.box(1.8, 1.9, 0.6, 0xc9c1b2, 5.6, 0, 12.4 - 0.3, 0, {}); addCol(4.7, 6.5, 11.8, 12.4, 'bld', 1.9);
   b.box(0.3, 2.4, 0.3, 0xe0b040, 3.0, 0, 9.2); b.box(2.4, 0.12, 0.14, 0xe0b040, 3.9, 2.3, 9.2); b.box(0.08, 0.6, 0.02, 0x555555, 4.8, 1.7, 9.2); addCol(2.85, 3.15, 9.05, 9.35, 'crane');
   shopFront(8, 12.8, 9.4, 12.2, 1.35, 0xe6dccb, 0xd49a2a, '五金建材', '#d49a2a', '#2b2118', 'hw');
   for (const [x, z] of [[8.6, 7.6], [10.0, 7.6], [11.6, 7.6]]) { for (let i = 0; i < 5; i++) b.box(1.0, 0.07, 0.42, 0xc49a62, x, i * 0.07, z, (i % 2) * 0.05); addCol(x - 0.5, x + 0.5, z - 0.24, z + 0.24, 'lumber'); }
@@ -450,7 +453,7 @@ export function buildWorld(scene) {
           gl.box(lx1 - lx0 - 0.4, 0.45, 0.02, rnd() < 0.6 ? 0xffe4b8 : 0xcfe8ff, cx, 0.08, d1 + 0.02, 0, { ao: false, jitter: 0.1 });
           b.box(lx1 - lx0 + 0.1, 0.03, 0.36, aw2, cx, 0.62, d1 + 0.18, 0, { ao: false });
           windowsOn(lx0, lx1, d0 + 0.2, d1 - 0.2, h, 0.62, 0.4, 'x');
-          addCol(lx0, lx1, d0, d1, 'bld'); mapRect(lx0, lx1, d0, d1, 'bld');
+          addCol(lx0, lx1, d0, d1, 'bld', h + 0.05); mapRect(lx0, lx1, d0, d1, 'bld');
         } else { // parking lot or pocket garden
           const cx = (lx0 + lx1) / 2, cz = (d0 + d1) / 2;
           if (rnd() < 0.5) { b.box(lx1 - lx0, 0.02, d1 - d0, 0x5a5a5e, cx, 0, cz, 0, { ao: false }); mapRect(lx0, lx1, d0, d1, 'lot'); }

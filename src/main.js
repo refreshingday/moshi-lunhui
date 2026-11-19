@@ -52,8 +52,17 @@ if (isTouch) {
   joy.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; let dx = e.clientX - cx, dy = e.clientY - cy; const l = Math.hypot(dx, dy), m = 46; if (l > m) { dx *= m / l; dy *= m / l; } knob.style.transform = `translate(${dx}px,${dy}px)`; touch.x = dx / m; touch.z = dy / m; });
   const end = () => { id = null; knob.style.transform = ''; touch.x = touch.z = 0; };
   joy.addEventListener('pointerup', end); joy.addEventListener('pointercancel', end);
-  const hold = (el, key) => { el.addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); touch[key] = true; pressed.add('t_' + key); }); el.addEventListener('pointerup', () => touch[key] = false); el.addEventListener('pointerleave', () => touch[key] = false); };
-  hold($('tAtk'), 'atk'); hold($('tUse'), 'use'); hold($('tThrow'), 'throw'); hold($('tTrap'), 'trap');
+  // pointercancel fires when the OS steals the touch (notification shade, edge swipe): release or the button sticks
+  const hold = (el, key) => {
+    const up = () => { touch[key] = false; el.classList.remove('on'); };
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); try { el.setPointerCapture(e.pointerId); } catch {} touch[key] = true; el.classList.add('on'); pressed.add('t_' + key); });
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+  };
+  hold($('tAtk'), 'atk'); hold($('tUse'), 'use'); hold($('tThrow'), 'throw'); hold($('tTrap'), 'trap'); hold($('tHeal'), 'heal'); hold($('tDodge'), 'dodge');
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  // iOS ignores user-scalable=no: block pinch-zoom on the page (the canvas handles its own pinch via OrbitControls)
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  let lastTap = 0; document.addEventListener('touchend', (e) => { const t = performance.now(); if (t - lastTap < 300 && e.target.closest('#touch')) e.preventDefault(); lastTap = t; }, { passive: false });
 }
 
 function readInput() {
@@ -81,8 +90,8 @@ function readInput() {
   input.attack = !busy && (mouseDown || touch.atk || keys.has('j') && false);
   input.throw = !busy && (pressed.has('q') || pressed.has('t_throw'));
   input.trap = !busy && (pressed.has('t') || pressed.has('t_trap'));
-  input.heal = !busy && pressed.has('h');
-  input.dodge = !busy && (pressed.has(' ') || pressed.has('shift'));
+  input.heal = !busy && (pressed.has('h') || pressed.has('t_heal'));
+  input.dodge = !busy && (pressed.has(' ') || pressed.has('shift') || pressed.has('t_dodge'));
   input.use = !busy && (keys.has('e') || touch.use);
   input.usePressed = !busy && (pressed.has('e') || pressed.has('t_use'));
   pressed.clear();
@@ -103,6 +112,33 @@ $('sTheme').onclick = () => { const d = document.documentElement; const cur = d.
 
 let follow = true; $('sFollow').onchange = (e) => follow = e.target.checked;
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) R.post.uTilt.value = 0.3;
+
+// item counts on the touch buttons (dimmed at 0)
+const tcache = {};
+function touchCounts() {
+  const n = (k) => game.stash[k] || 0;
+  for (const [id, k] of [['tHeal', 'medkit'], ['tThrow', 'molotov'], ['tTrap', null]]) {
+    const v = k ? n(k) : n('spike') + n('firetrap');
+    if (tcache[id] === v) continue; tcache[id] = v;
+    $(id + 'N').textContent = v || ''; $(id).classList.toggle('none', !v);
+  }
+}
+
+// march camera -> survivor (survivor is ~0.4 tall: waist, head, both shoulders; hidden feet alone don't count); any sample inside a building's footprint and under its roof = hidden
+const occ = world.colliders.filter(c => c.h > 0);
+function occluded(P, cam) {
+  for (const [ox, oy] of [[0, 0.22], [0, 0.38], [-0.14, 0.26], [0.14, 0.26]]) {
+    const rx = -(cam.z - P.z), rz = cam.x - P.x, rl = Math.hypot(rx, rz) || 1;
+    const tx = P.x + rx / rl * ox, tz = P.z + rz / rl * ox;
+    const dx = cam.x - tx, dy = cam.y - oy, dz = cam.z - tz, L = Math.hypot(dx, dy, dz), st = 0.08 / L;
+    for (let t = st; t < 1; t += st) { // fixed 8cm steps from the survivor toward the camera (roof edges are thin)
+      const x = tx + dx * t, y = oy + dy * t, z = tz + dz * t;
+      if (y > 6) break;
+      for (const c of occ) if (y < c.h && x > c.x0 && x < c.x1 && z > c.z0 && z < c.z1) return true;
+    }
+  }
+  return false;
+}
 
 // ---------------------------------------------------------------- loop
 const clock = new THREE.Clock();
@@ -136,7 +172,11 @@ function tick(dt) {
   R.focus.copy(C.target);
   R.setShadowSpan(Math.min(34, Math.max(10, R.camera.position.distanceTo(C.target) * 0.9)));
   CUT.uP.value.set(P.x, 0.3, P.z); CUT.uC.value.copy(R.camera.position);
+  // only open the see-through hole when a building really stands between camera and survivor
+  CUT.uR.value += ((occluded(P, R.camera.position) ? 1 : 0) - CUT.uR.value) * (1 - Math.exp(-dt * 10));
+  if (CUT.uR.value < 0.02) CUT.uR.value = 0;
   document.body.classList.toggle('fight', !!(game.combat || game.canMove));
+  if (isTouch) touchCounts();
   const sh = game.sim.shake;
   if (sh > 0) { R.camera.position.x += (Math.random() - 0.5) * sh * 0.12; R.camera.position.y += (Math.random() - 0.5) * sh * 0.12; }
   R.post.uTime.value += dt;

@@ -18,7 +18,7 @@ export function createRenderer(container) {
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(28, 1, 0.5, 240);
+  const camera = new THREE.PerspectiveCamera(28, 1, 1.5, 240);
   const HOME_BASE = new THREE.Vector3(15.5, 15.5, 20.5);
   const HOME = { pos: HOME_BASE.clone(), target: new THREE.Vector3(0, 0, 0.3) };
   camera.position.copy(HOME.pos);

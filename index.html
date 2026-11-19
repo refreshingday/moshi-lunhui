@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>末世轮回</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -258,12 +261,21 @@ body.prep #hint{bottom:96px}
 .touch:not(.fight) #touch{display:none}
 .touch.prep:not(.nearbar) #tbtns{display:none}
 .touch.prep.nearbar #tbtns button:not(#tUse){visibility:hidden}
-#joy{position:fixed;left:24px;bottom:110px;width:120px;height:120px;border-radius:50%;z-index:6;touch-action:none}
-#joy i{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:var(--ink);opacity:.65}
-#tbtns{position:fixed;right:20px;bottom:110px;z-index:6;display:grid;grid-template-columns:repeat(2,64px);gap:10px}
-#tbtns button{height:64px;border-radius:50%;font-weight:700;font-size:13px;touch-action:none;display:grid;place-items:center}
-#tbtns .ic{width:30px;height:30px}
-#tbtns button.big{background:var(--accent);color:#fff}
+.touch.prep #tbtns{pointer-events:none} .touch.prep #tUse{pointer-events:auto}
+.touch,.touch *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.touch{overscroll-behavior:none;touch-action:manipulation}
+#joy{position:fixed;left:calc(20px + env(safe-area-inset-left));bottom:calc(110px + env(safe-area-inset-bottom));width:124px;height:124px;border-radius:50%;z-index:6;touch-action:none}
+#joy i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:var(--ink);opacity:.65;pointer-events:none}
+#tbtns{position:fixed;right:calc(14px + env(safe-area-inset-right));bottom:calc(104px + env(safe-area-inset-bottom));z-index:6;width:206px;height:180px;touch-action:none}
+#tbtns button{position:absolute;width:56px;height:56px;border-radius:50%;font-weight:700;font-size:13px;touch-action:none;display:grid;place-items:center;transition:transform .08s}
+#tbtns button:active,#tbtns button.on{transform:scale(.9)}
+#tbtns .ic{width:26px;height:26px}
+#tbtns button.big{width:84px;height:84px;right:0;bottom:0;background:var(--accent);color:#fff}
+#tbtns button.big .ic{width:38px;height:38px}
+#tDodge{right:96px;bottom:0} #tUse{right:92px;bottom:66px} #tThrow{right:28px;bottom:96px} #tTrap{right:150px;bottom:40px} #tHeal{right:150px;bottom:110px}
+#tbtns button b{position:absolute;right:-2px;top:-2px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--ink);color:var(--paper);font:700 11px/18px var(--mono)}
+#tbtns button.none{opacity:.35}
+#tbtns button b:empty{display:none}
 
 /* ---------- intro ---------- */
 #intro{position:fixed;inset:0;z-index:25;display:grid;place-items:center;transition:opacity .8s;pointer-events:none}
@@ -292,6 +304,30 @@ body.prep #hint{bottom:96px}
   #dock .phase{min-width:0;padding:0 8px 0 4px;white-space:nowrap} #dock .phase span{display:none}
   #settings{right:12px;left:12px;width:auto}
   #hint{bottom:240px;font-size:12px}
+}
+@media (max-height: 520px) and (orientation: landscape){
+  .brand{left:16px;top:10px;font-size:15px} .brand small{display:none}
+  .hero{display:none}
+  #stats{left:calc(10px + env(safe-area-inset-left));top:50px;width:132px;padding:4px 8px;transform:scale(.82);transform-origin:0 0}
+  body.prep #stats{top:50px}
+  #chips{left:calc(12px + env(safe-area-inset-left));top:40px}
+  #inv,#hotbar{display:none}
+  #clock{top:8px;right:calc(10px + env(safe-area-inset-right));left:auto;transform:scale(.8);transform-origin:100% 0}
+  #mini{left:auto;right:calc(170px + env(safe-area-inset-right));top:8px;bottom:auto;width:84px;height:84px}
+  .touch #mini{right:calc(150px + env(safe-area-inset-right))}
+  #joy{bottom:calc(14px + env(safe-area-inset-bottom));left:calc(24px + env(safe-area-inset-left))}
+  #tbtns{bottom:calc(8px + env(safe-area-inset-bottom));transform:scale(.9);transform-origin:100% 100%}
+  #dock{bottom:8px;transform:translateX(-50%) scale(.82);transform-origin:50% 100%}
+  #dock .dk.opt,#dock #dReset{display:none}
+  #card{bottom:64px;max-height:calc(100vh - 80px);overflow:auto}
+  .touch #card{max-width:calc(100vw - 400px)}
+  #hint{bottom:70px;font-size:12px} body.prep #hint{bottom:70px}
+  #toasts{top:60px}
+  #bossbar{top:56px;width:min(420px,calc(100vw - 420px))}
+  #banner{top:40%}
+  #craft{bottom:60px;max-height:calc(100vh - 80px);overflow:auto}
+  #settings{bottom:60px;max-height:calc(100vh - 80px);overflow:auto}
+  #modal{max-height:calc(100vh - 32px);overflow:auto}
 }
 </style>
 <script type="importmap">
@@ -373,7 +409,7 @@ body.prep #hint{bottom:96px}
 
 <div id="touch">
   <div id="joy" class="glass"><i id="joyK"></i></div>
-  <div id="tbtns"><button class="glass" id="tThrow"><span class="i" data-ic="molotov"></span></button><button class="big" id="tAtk"><span class="i" data-ic="knife"></span></button><button class="glass" id="tUse"><span class="i" data-ic="key"></span></button><button class="glass" id="tTrap"><span class="i" data-ic="spike"></span></button></div>
+  <div id="tbtns"><button class="glass" id="tHeal"><span class="i" data-ic="medkit"></span><b id="tHealN"></b></button><button class="glass" id="tThrow"><span class="i" data-ic="molotov"></span><b id="tThrowN"></b></button><button class="glass" id="tTrap"><span class="i" data-ic="spike"></span><b id="tTrapN"></b></button><button class="glass" id="tUse"><span class="i" data-ic="key"></span></button><button class="glass" id="tDodge"><span class="i" data-ic="run"></span></button><button class="big" id="tAtk"><span class="i" data-ic="knife"></span></button></div>
 </div>
 
 <div id="intro"><div class="ld">LOADING · 正在搭建街区</div></div>
